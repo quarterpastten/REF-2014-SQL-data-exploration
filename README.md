@@ -108,5 +108,46 @@ FROM (SELECT
 ![image](https://user-images.githubusercontent.com/86210945/151543451-5385555f-8e96-43ea-9862-02de4aed20dc.png)
 
 
+Q3: which institution scored highest for philosophy? 
 
+Let us write a function that accepts a unit of assessment name and returns the results for that subject. (We can also make it return the rankings for all subjects by passing in null as the argument): 
+
+~~~~sql
+CREATE OR REPLACE FUNCTION get_table(uoa varchar(255))
+	returns table (
+		institution_name VARCHAR(255), 
+		unit_of_assessment_name VARCHAR(255), 
+		profile VARCHAR(255), 
+		star_rating VARCHAR(255), 
+		percentage NUMERIC(4,1)) 
+	language plpgsql
+	as $$
+	#variable_conflict use_column
+	begin
+		return query
+		SELECT 
+			institution_name,
+			unit_of_assessment_name,
+			profile,
+			star_rating,
+			percentage
+		FROM ref_table WHERE unit_of_assessment_name=uoa OR uoa is null 
+			GROUP BY unit_of_assessment_name, institution_name, 
+				multiple_submission_name, profile, star_rating, percentage 
+			ORDER BY institution_name;
+	end;
+	$$
+
+ 
+SELECT 
+	a.institution_name AS "Institution name", 
+	a.percentage AS "Overall quality profile"
+FROM (
+	SELECT *  FROM get_table('Philosophy') 
+) AS a 
+WHERE a.profile='Overall' AND a.star_rating='4*' ORDER BY a.percentage DESC
+
+~~~~
+
+![image](https://user-images.githubusercontent.com/86210945/151551121-ee301459-bc43-4a20-a53d-cf2cef57920f.png)
 
