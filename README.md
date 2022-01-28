@@ -2,9 +2,9 @@
 
 This is a data exploration using the [UK University Research Excellence Framework Ratings 2014](https://public.tableau.com/s/sites/default/files/media/Resources/Research%20Excellence%20Framework%202014%20Results_Pivoted.xlsx).  Conducted by the four UK higher education funding bodies, its purpose was to assess the quality of research in UK higher education institutions. It contains data on 154 UK research institutions, each of which made submissions for up to 36 'units of assessment' (e.g. history, philosophy, biological sciences, etc.) Each submission was graded in terms of the university's output, research environment and 'impact' the research had on society in general. 
 
-In what follows, I use PostgreSQL to import and analyse the data. I worked primarily in PgAdmin, though also use psql. A range of skills are utilised, including: creating tables, setting and converting data types, suqberying, creating user-defined functions, views, grouping data, temp tables, joins, CTEs.    
+In what follows, PostgreSQL is used to import and analyse the data, mainly via PgAdmin, though a little is done in psql also. I've attempted to integrate a range of SQL skills in what follows, including: creating tables, setting and converting data types, subquerying, user-defined functions, views, grouping data, temp tables, joins, CTEs, case statements and a number of mathematical aggregate functions.    
 
-## Overview of the data
+## Understanding of the data
 
 The data comes in the form of an Excel spreadsheet which we convert to a .csv. Below shows the format of the raw data. Here we have one university (Anglia Ruskin) and one of its submissions (Allied Health Professions, Dentistry, Nursing and Pharmacy). Each submission is broken into 4 categories (outputs, impact, environment and overall) and each of these in turn is given a star rating (from 4* to unclassified). The percentage column shows the degree to which that category fell under each rating. Hence, the better submissions will have more 4* and 3* for each category. To simplify things, I focus only on the 'overall' category, which is the average of the other three.   
 
