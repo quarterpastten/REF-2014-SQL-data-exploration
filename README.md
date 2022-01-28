@@ -40,8 +40,11 @@ In psql, we run the following:
 \copy raw_data FROM 'C:\Users\Public\SQL_test_project\raw_data.csv' WITH CSV HEADER;
 ```
 
+We can, if we like, add a primary key to the table: 
+~~~~sql 
+ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
+~~~~
 
-![image](https://user-images.githubusercontent.com/86210945/151529914-b1cb5631-80e6-4594-8463-f84f631560aa.png)
-
+### Task 3: Data cleaning
 
 
