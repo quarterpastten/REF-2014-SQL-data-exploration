@@ -40,6 +40,13 @@ In psql, we run the following:
 \copy raw_data FROM 'C:\Users\Public\SQL_test_project\raw_data.csv' WITH CSV HEADER;
 ```
 
+Let's see how many rows we have loaded:  
+~~~~sql
+SELECT COUNT(*) FROM raw_data;
+~~~~
+
+![image](https://user-images.githubusercontent.com/86210945/151538690-f0a344ef-cf2b-4210-98a7-a09c8d2ba8b5.png)
+
 We can, if we like, add a primary key to the table: 
 ~~~~sql 
 ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
@@ -47,4 +54,22 @@ ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
 
 ### Task 3: Data cleaning
 
+We'll work with a duplicate of the raw_data table: 
+~~~~sql
+CREATE TABLE ref_table AS (SELECT * FROM raw_data);
+~~~~
+
+It turns out that some of the columns which should have numeric data types have some non-numeric characters in them. We can see this by using a bit of regex:
+~~~~sql
+SELECT institution_code, id FROM raw_data WHERE institution_code !~ '^([0-9]+[.]?[0-9]*|[.][0-9]+)$'; 
+~~~~
+![image](https://user-images.githubusercontent.com/86210945/151539222-1a480bf3-ed33-483e-97a0-eceb54b2d0e0.png)
+...
+
+We'll remove the offending characters by using REGEXP_REPLACE to replace them with a space, and then converting the spaces to NULL (for we won't be able to cast the type to a numeric with a space): 
+~~~~sql
+UPDATE ref_table SET institution_code = REGEXP_REPLACE(institution_code, '[^0-9]+', '', 'g')
+UPDATE ref_table SET institution_code = NULLIF(institution_code, '');
+ALTER TABLE ref_table ALTER COLUMN institution_code TYPE INT USING institution_code::integer;
+~~~~
 
