@@ -73,3 +73,40 @@ UPDATE ref_table SET institution_code = NULLIF(institution_code, '');
 ALTER TABLE ref_table ALTER COLUMN institution_code TYPE INT USING institution_code::integer;
 ~~~~
 
+(We do similar for the other column, which had nonnumeric characters:)
+~~~~sql
+UPDATE ref_table SET percentage = REGEXP_REPLACE(percentage, '[^0-9.]+', '', 'g');
+UPDATE ref_table SET percentage = NULLIF(percentage, '');
+ALTER TABLE ref_table ALTER COLUMN percentage TYPE NUMERIC(4,1) USING percentage::numeric(4,1);
+~~~~
+
+### Task 4: data exploration 
+
+We can now run queries on the data. 
+
+Q1: which were the top 5 institutions in terms of 4* and 3*? 
+
+~~~~sql
+SELECT institution_name, ROUND(AVG(percentage),2) FROM ref_table 
+	WHERE profile='Overall' AND (star_rating='4*' OR star_rating='3*') 
+		GROUP BY institution_name ORDER BY AVG(percentage) DESC LIMIT 5;
+~~~~
+![image](https://user-images.githubusercontent.com/86210945/151540575-324011f2-6bb1-49b6-884f-e9d2c45fb81c.png)
+
+Q2: how many FTE (full-time equivalent) staff were there in total? According to the www.ref.ac.uk website, this number should be 52,061.  
+
+Each submission had a given number of FTE staff, and so we need to add together the staff of every submission. A complexity in the data is that some submissions were further split into two or three submissions, with each having its own number of staff. Hence, we need to group the data not only by submission (i.e. unit_of_assessment_name) but also by any multiple submissions made (multiple_submission_name). We do this with fairly extensive use of GROUP BY:  
+~~~~sql
+SELECT 
+	ROUND(SUM(a.total)::numeric, 2) "Total FTE staff"
+FROM (SELECT 
+		AVG(FTE_category_A_staff_submitted) as total
+	FROM ref_table 
+		GROUP BY institution_name, unit_of_assessment_name, FTE_category_A_staff_submitted, multiple_submission_name
+		ORDER BY institution_name, unit_of_assessment_name) a
+~~~~
+![image](https://user-images.githubusercontent.com/86210945/151543451-5385555f-8e96-43ea-9862-02de4aed20dc.png)
+
+
+
+
