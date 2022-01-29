@@ -259,6 +259,84 @@ FROM a
 
 ![image](https://user-images.githubusercontent.com/86210945/151578087-fd8d5ce3-d587-4afd-9c0a-bac5c2a579f1.png)
 
-# Import new data and combine with original data
+## Import new data and combine with original data
+It's now time to import another set of data. According to this [Higher Education blog](https://wonkhe.com/blogs/ref-2014-sector-results-2/), the submitted figures do not tell the whole story. The published figures only include the FTE staff institutions decided to put forward. However, a 'contextual' [dataset](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data) was subsequently published showing the numbers of staff that were eligible to be put forward per institution. It will be intersting therefore to compare the staff numbers each institution submitted with the numbers that were eligible. The blog gives a table listing 'Intensity' value for each institution, which is submitted FTE / eligible FTE. Our job is to import this new data and use SQL to combine it with our existing data and recreate the blog's findings.
 
+![image](https://user-images.githubusercontent.com/86210945/151658862-733378fd-bc70-45a2-8666-8412a4a022a9.png)
+Source: https://wonkhe.com/blogs/ref-2014-sector-results-2/ 
+
+1. Create a table with the relevant data types
+~~~~sql
+DROP TABLE raw_data_context;
+CREATE TABLE raw_data_context(
+	--id SERIAL,
+	instid INT, 
+	ukprn INT,
+	region VARCHAR(255),
+	he_provider VARCHAR(255),
+	unit_of_assessment_number VARCHAR(255),-- change this 
+	unit_of_assessment_name VARCHAR(255),
+	multiple_submission_letter VARCHAR(255),
+	FTE_scaled VARCHAR(255) -- change this 
+);
+~~~~
+
+2. Import data (via psql)
+```console
+\copy raw_data_context FROM 'C:/Users/Public/SQL_test_project/raw_data_context.csv' WITH CSV HEADER;
+```
+
+3. As before, we need to clean a couple of columns:
+~~~~sql
+-- clean unit_of_assessment_number column, and set to INT (changes 'N/A' to O):
+UPDATE raw_data_context SET unit_of_assessment_number = REGEXP_REPLACE(unit_of_assessment_number, '[^0-9]+', '00', 'g')
+ALTER TABLE raw_data_context ALTER COLUMN unit_of_assessment_number TYPE INT USING unit_of_assessment_number::integer;
+
+-- clean FTE_scaled column, and set to INT (changes '..' to 0):
+UPDATE raw_data_context SET FTE_scaled = REGEXP_REPLACE(FTE_scaled, '[^0-9]+', '0', 'g')
+ALTER TABLE raw_data_context ALTER COLUMN FTE_scaled TYPE INT USING FTE_scaled::integer;
+~~~~
+
+Now that we have the data we want to merge this with our existing data. Our strategy will be to create two temp tables and then join them:
+
+~~~~sql
+-- table 1 
+CREATE TEMPORARY TABLE fte_submitted AS 
+WITH a AS (SELECT 
+		institution_code, 
+		institution_name, 
+		ROUND(AVG(FTE_category_A_staff_submitted),2) as fte, 
+		unit_of_assessment_number, 
+		multiple_submission_name  
+		FROM ref_table 
+			GROUP BY institution_code, institution_name,  unit_of_assessment_number, multiple_submission_name 
+			ORDER BY institution_name, unit_of_assessment_number, multiple_submission_name
+		)
+SELECT
+	  institution_code, 
+	  institution_name, 
+	  SUM(fte) AS "Submitted FTE" 
+FROM a 
+	GROUP BY institution_code, institution_name 
+	ORDER BY institution_code
+
+-- table 2 
+DROP TABLE fte_eligible
+CREATE TEMPORARY TABLE fte_eligible AS 
+SELECT ukprn, SUM(FTE_scaled) AS "Eligible FTE" FROM raw_data_context GROUP BY ukprn ORDER BY ukprn
+
+
+-- Join the two tables 
+SELECT 
+	fte_submitted.institution_code,
+	fte_submitted.institution_name,
+	fte_submitted."Submitted FTE",  
+	fte_eligible."Eligible FTE",
+	ROUND(fte_submitted."Submitted FTE"/NULLIF(fte_eligible."Eligible FTE", 0),2) AS "Intensity"
+FROM fte_submitted 
+	INNER JOIN fte_eligible ON fte_submitted.institution_code = fte_eligible.ukprn
+	WHERE ROUND(fte_submitted."Submitted FTE"/NULLIF(fte_eligible."Eligible FTE", 0),2) <1 
+	ORDER BY "Intensity" DESC	
+
+~~~~
 
