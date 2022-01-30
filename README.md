@@ -1,17 +1,23 @@
-# REF-2014-SQL-data-exploration
+# Research Excellence Framework 2014 
+## A SQL data exploration
 
-This is a data exploration using the [UK University Research Excellence Framework Ratings 2014](https://public.tableau.com/s/sites/default/files/media/Resources/Research%20Excellence%20Framework%202014%20Results_Pivoted.xlsx).  Conducted by the four UK higher education funding bodies, its purpose was to assess the quality of research in UK higher education institutions. It contains data on 154 UK research institutions, each of which made submissions for up to 36 'units of assessment' (e.g. history, philosophy, biological sciences, etc.) Each submission was graded in terms of the university's output, research environment and 'impact' the research had on society in general. 
+The [UK University Research Excellence Framework Ratings 2014](https://public.tableau.com/s/sites/default/files/media/Resources/Research%20Excellence%20Framework%202014%20Results_Pivoted.xlsx) was conducted by the four UK higher education funding bodies in order to assess the quality of research in UK higher education institutions. The dataset contains data on 154 UK research institutions, each of which made submissions for up to 36 'units of assessment' (e.g. history, philosophy, biological sciences, etc.) Each submission was graded in terms of the university's output, research environment and 'impact' the research had on society in general. 
 
-In what follows, PostgreSQL is used to import and analyse the data, mainly via PgAdmin, though a little is done in psql also. I've attempted to integrate a range of SQL skills in what follows, including: creating tables, setting and converting data types, subquerying, user-defined functions, views, grouping data, temp tables, joins, CTEs, case statements and a number of mathematical aggregate functions.    
+The purpose here is to answer a number of questions about the dataset, and to do this we will use **PostgreSQL** to import and analyse the data. We shall rely primarily on **PgAdmin**, though a little is done in **psql** also. SQL skills utilised include: *creating tables, setting and converting data types, subquerying, user-defined functions, views, grouping data, temp tables, joins, CTEs, case statements and a number of mathematical aggregate functions.*    
 
 ## Understanding of the data
 
-The data comes in the form of an Excel spreadsheet which we convert to a .csv. Below shows the format of the raw data. Here we have one university (Anglia Ruskin) and one of its submissions (Allied Health Professions, Dentistry, Nursing and Pharmacy). Each submission is broken into 4 categories (outputs, impact, environment and overall) and each of these in turn is given a star rating (from 4* to unclassified). The percentage column shows the degree to which that category fell under each rating. Hence, the better submissions will have more 4* and 3* for each category. To simplify things, I focus only on the 'overall' category, which is the average of the other three.   
+The data comes in the form of an Excel spreadsheet, though we convert it to a .csv file. 
+
+Below shows the format of the raw data: here we have one university (*Anglia Ruskin*) and one of its submissions (*Allied Health Professions, Dentistry, Nursing and Pharmacy*). Each submission is broken into 4 'profiles' (*outputs, impact, environment* and *overall*) and each of these in turn is given a 'star rating' (from 4* to *unclassified*). The values for the ratings are stored in the percentage column, and sum to 100 for each profile. 
+
+The better submissions will have higher values for 4* and 3* in each of the profiles. To simplify things, I focus only on the 'Overall' profile, which is the average of the other three.   
 
 ![image](https://user-images.githubusercontent.com/86210945/151533542-42289c04-8680-408a-b959-2456d492c0f5.png)
 
-### Task 1: create a table 
-First we create a table with columns that match the .csv file columns. Two columns (institution_code and percentage) are initially set to varchar when really they should be INT and NUMERIC respectively. This is because (as it turns out) there are some non-numeric characters in those columns which cause errors when using numeric types.    
+## Task 1: create a table and import raw data into it 
+
+First we create a table with columns that match the .csv file columns. Two columns (institution_code and percentage) are initially set to varchar when really they should be INT and NUMERIC respectively. This is because (as it turns out) there are some non-numeric characters in those columns which cause errors when using numeric types. (We will resolve this shortly.)   
 
 ~~~~sql
 DROP TABLE raw_data;
@@ -32,9 +38,7 @@ CREATE TABLE raw_data(
 ) 
 ~~~~
 
-
-### Task 2: import the data
-In psql, we run the following:
+In psql, we run the following  to import the data:
 
 ```console
 \copy raw_data FROM 'C:\Users\Public\SQL_test_project\raw_data.csv' WITH CSV HEADER;
@@ -52,39 +56,44 @@ We can, if we like, add a primary key to the table:
 ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
 ~~~~
 
-### Task 3: Data cleaning
+## Task 2: Data cleaning
 
-We'll work with a duplicate of the raw_data table: 
+We will work with a duplicate of the raw_data table, and make changes to that only: 
+
 ~~~~sql
 CREATE TABLE ref_table AS (SELECT * FROM raw_data);
 ~~~~
 
-It turns out that some of the columns which should have numeric data types have some non-numeric characters in them. We can see this by using a bit of regex:
+As noted above, a couple of the columns which should have numeric data types have some non-numeric characters in them. We can see this by using a bit of regex:
+
 ~~~~sql
-SELECT institution_code, id FROM raw_data WHERE institution_code !~ '^([0-9]+[.]?[0-9]*|[.][0-9]+)$'; 
+SELECT 	institution_code, 
+	id 
+FROM raw_data WHERE institution_code !~ '^([0-9]+[.]?[0-9]*|[.][0-9]+)$'; 
 ~~~~
 ![image](https://user-images.githubusercontent.com/86210945/151539222-1a480bf3-ed33-483e-97a0-eceb54b2d0e0.png)
 ...
 
-We'll remove the offending characters by using REGEXP_REPLACE to replace them with a space, and then converting the spaces to NULL (for we won't be able to cast the type to a numeric with a space): 
+We'll remove the offending characters by using REGEXP_REPLACE to replace them with a space, and then converting the spaces to NULL (this is because we won't be able to cast the type to a numeric with a space): 
+
 ~~~~sql
 UPDATE ref_table SET institution_code = REGEXP_REPLACE(institution_code, '[^0-9]+', '', 'g')
 UPDATE ref_table SET institution_code = NULLIF(institution_code, '');
 ALTER TABLE ref_table ALTER COLUMN institution_code TYPE INT USING institution_code::integer;
 ~~~~
 
-(We do similar for the other column, which had nonnumeric characters:)
+(We do similar for the other column)
 ~~~~sql
 UPDATE ref_table SET percentage = REGEXP_REPLACE(percentage, '[^0-9.]+', '', 'g');
 UPDATE ref_table SET percentage = NULLIF(percentage, '');
 ALTER TABLE ref_table ALTER COLUMN percentage TYPE NUMERIC(4,1) USING percentage::numeric(4,1);
 ~~~~
 
-### Task 4: data exploration 
+## Task 3: data exploration 
 
-We can now run queries on the data. 
+We are now ready to run queries on the data. 
 
-Q1: which were the top 5 institutions in terms of 4* and 3*? 
+#### Question 1: which are the best institutions in terms of research? List top 5 that scored the highest in terms of grades 4* and 3*.
 
 ~~~~sql
 SELECT 	institution_name, 
@@ -95,9 +104,9 @@ WHERE profile='Overall' AND (star_rating='4*' OR star_rating='3*')
 ~~~~
 ![image](https://user-images.githubusercontent.com/86210945/151540575-324011f2-6bb1-49b6-884f-e9d2c45fb81c.png)
 
-Q2: how many FTE (full-time equivalent) staff were there in total? According to the www.ref.ac.uk website, this number should be 52,061.  
+#### Question 2: how many FTE (full-time equivalent) staff were there in total?  
 
-Each submission had a given number of FTE staff, and so we need to add together the staff of every submission. A complexity in the data is that some submissions were further split into two or three submissions, with each having its own number of staff. Hence, we need to group the data not only by submission (i.e. unit_of_assessment_name) but also by any multiple submissions made (multiple_submission_name). We do this with fairly extensive use of GROUP BY:  
+Each submission had a given number of FTE staff, and so we need to add together the staff of every submission. A complexity in the data is that some submissions were further split into two or three submissions, with each having its own number of staff. Hence, we need to group the data not only by submission (i.e. unit_of_assessment_name) but also by any multiple submissions made (as specified in the *multiple_submission_name* column). We do this with fairly extensive use of GROUP BY:  
 ~~~~sql
 SELECT ROUND(SUM(a.total)::numeric, 2) "Total FTE staff"
 FROM (SELECT AVG(FTE_category_A_staff_submitted) as total
@@ -108,9 +117,9 @@ FROM (SELECT AVG(FTE_category_A_staff_submitted) as total
 ![image](https://user-images.githubusercontent.com/86210945/151543451-5385555f-8e96-43ea-9862-02de4aed20dc.png)
 
 
-Q3: which institution scored highest for philosophy? 
+#### Question 3: which institutions scored the highest 4* ratings for philosophy? 
 
-Let us write a function that accepts a unit of assessment name and returns the results for that subject. (We can also make it return the rankings for all subjects by passing in null as the argument): 
+Let us write a function that accepts any unit of assessment name and returns the results for that subject: 
 
 ~~~~sql
 CREATE OR REPLACE FUNCTION get_table(uoa varchar(255))
@@ -151,7 +160,9 @@ WHERE a.profile='Overall' AND a.star_rating='4*' ORDER BY a.percentage DESC
 
 ![image](https://user-images.githubusercontent.com/86210945/151551121-ee301459-bc43-4a20-a53d-cf2cef57920f.png)
 
-Q4: Which institution scored highest for philosophy in terms of both 4* and 3*?
+We see that the University of Oxford scores the highest. 
+
+#### Question 4: Which institution scored highest for philosophy in terms of *both* 4* and 3*?
 
 This time we'll use a view: 
 
@@ -178,14 +189,18 @@ WHERE a.profile='Overall' AND (a.star_rating='4*' OR a.star_rating='3*')
 
 ![image](https://user-images.githubusercontent.com/86210945/151571200-12cd3162-08e8-4bc1-bc96-15e91e3674c6.png)
 
-Q5: The University of Leeds maintains that it ranks number 10 in terms of 'research power'. According to the university [website](https://ref2014.leeds.ac.uk/brand-new-page/definitions/)  this value is derived from the 'grade point average (GPA)' x FTE. After a close look at the document in the link, we see that GPA is calculated with the following steps: for each institution, and each subject
-1. Multiply each percentage by its star rating. E.g. if it has a value of 6.4% for 4*, we calculate 4 x 6.4 = 25.6. We do the same for 3*, 2* and 1*. We treat 'unclassified' as multiplying by 0. 
-2. Add them all together. That is, add the results for 1*, 2*, 3*, 4* together. 
+#### Question 5: Give the rankings in terms of ‘research power’.
+
+According to the university [website](https://ref2014.leeds.ac.uk/brand-new-page/definitions/), the 'research power' is derived from something called the 'grade point average (GPA)', which is multiplied by the FTE that accompanies each submission. After a close look at the document in the link, we see that we first calculate the GPA with the following steps: 
+
+for each institution, and each unit of assessment (UOA)
+1. Multiply each percentage by its star rating. (E.g. if it has a value of 6.4% for 4*, we calculate 4 x 6.4 = 25.6. If it has 24% for 3* we do 3 x 24 = 72, and so on for 2* and 1*. We treat 'unclassified' as multiplying by 0.)
+2. Add these values together.
 3. Divide this result by 100
-Now we have the GPA for each subject (UOA). The final step is this: 
+Now we have the GPA for each UOA. The final step is this: 
 4. For each UOA, multiply the GPA by FTE for that UOA
 
-To perform this with PostgreSQL we end up with a fairly big query, since we peforming several mathematical functions. To reduce the number of subqueries here we use a view:   
+The University of Leeds maintains that it ranks number 10 in terms of 'research power' - which will serve as a convenient sanity check for the following query. To perform all this with PostgreSQL we end up with a fairly long query since we peforming several mathematical functions. To reduce the number of subqueries here we use a view:   
 
 ~~~~sql
 -- view 
@@ -230,13 +245,14 @@ GROUP BY institution_name
 ORDER BY "SUM of fte * overall_gpa" DESC
 ~~~~
 
-We see that Leeds is indeed number 10 on this calculation: 
+University College London scores highest. We also see that Leeds is indeed number 10 on this calculation: 
 
 ![image](https://user-images.githubusercontent.com/86210945/151576700-eec8c88e-aff4-4862-baa7-e4153c9489ea.png)
 
-Q:  List the 36 subjects in terms of submission count, max to min.
+#### Question 6: Which units of assessment had the highest submission counts? 
 
 Here we use a Common Table Expression (CTE):
+
 ~~~~sql
 WITH a AS (
 	SELECT	unit_of_assessment_name, 
@@ -256,13 +272,11 @@ FROM a
 
 ![image](https://user-images.githubusercontent.com/86210945/151578087-fd8d5ce3-d587-4afd-9c0a-bac5c2a579f1.png)
 
-## Import new data and combine with original data
-It's now time to import another set of data. According to this [Higher Education blog](https://wonkhe.com/blogs/ref-2014-sector-results-2/), the submitted figures do not tell the whole story. The published figures only include the FTE staff institutions decided to put forward. However, a 'contextual' [dataset](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data) was subsequently published showing the numbers of staff that were eligible to be put forward per institution. It will be intersting therefore to compare the staff numbers each institution submitted with the numbers that were eligible. The blog gives a table listing 'Intensity' value for each institution, which is submitted FTE / eligible FTE. Our job is to import this new data and use SQL to combine it with our existing data and recreate the blog's findings.
+## Task 4: Import new data and combine with original data
 
-![image](https://user-images.githubusercontent.com/86210945/151658862-733378fd-bc70-45a2-8666-8412a4a022a9.png)
-Source: https://wonkhe.com/blogs/ref-2014-sector-results-2/ 
+According to this [higher education blog](https://wonkhe.com/blogs/ref-2014-sector-results-2/), the submitted figures do not tell the whole story since they only include the FTE staff that institutions decided to put forward. However, a 'contextual' [dataset](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data) was subsequently published showing the numbers of staff that were *eligible to be put forward* per institution. Perhaps some institutions, for instance, only put forward their most impressive staff. Let us compare the staff numbers submitted with the numbers that were eligible for each institution, which wll give us an 'Intensity' of research value for each institution, which equates to *submitted FTE / eligible FTE*. In what follows we will import this new data and use SQL to join it with our existing data and calculate the intesntity scores. 
 
-1. Create a table with the relevant data types
+#### 1. Create a table with the relevant data types
 ~~~~sql
 DROP TABLE raw_data_context;
 CREATE TABLE raw_data_context(
@@ -278,12 +292,12 @@ CREATE TABLE raw_data_context(
 );
 ~~~~
 
-2. Import data (via psql)
+#### 2. Import data (via psql)
 ```console
 \copy raw_data_context FROM 'C:/Users/Public/SQL_test_project/raw_data_context.csv' WITH CSV HEADER;
 ```
 
-3. As before, we need to clean a couple of columns:
+#### 3. As before, we need to clean a couple of columns:
 ~~~~sql
 -- clean unit_of_assessment_number column, and set to INT (changes 'N/A' to O):
 UPDATE raw_data_context SET unit_of_assessment_number = REGEXP_REPLACE(unit_of_assessment_number, '[^0-9]+', '00', 'g')
