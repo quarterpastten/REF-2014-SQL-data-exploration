@@ -87,9 +87,11 @@ We can now run queries on the data.
 Q1: which were the top 5 institutions in terms of 4* and 3*? 
 
 ~~~~sql
-SELECT institution_name, ROUND(AVG(percentage),2) FROM ref_table 
-	WHERE profile='Overall' AND (star_rating='4*' OR star_rating='3*') 
-		GROUP BY institution_name ORDER BY AVG(percentage) DESC LIMIT 5;
+SELECT 	institution_name, 
+	ROUND(AVG(percentage),2) 
+FROM ref_table 
+WHERE profile='Overall' AND (star_rating='4*' OR star_rating='3*') 
+	GROUP BY institution_name ORDER BY AVG(percentage) DESC LIMIT 5;
 ~~~~
 ![image](https://user-images.githubusercontent.com/86210945/151540575-324011f2-6bb1-49b6-884f-e9d2c45fb81c.png)
 
@@ -97,10 +99,8 @@ Q2: how many FTE (full-time equivalent) staff were there in total? According to 
 
 Each submission had a given number of FTE staff, and so we need to add together the staff of every submission. A complexity in the data is that some submissions were further split into two or three submissions, with each having its own number of staff. Hence, we need to group the data not only by submission (i.e. unit_of_assessment_name) but also by any multiple submissions made (multiple_submission_name). We do this with fairly extensive use of GROUP BY:  
 ~~~~sql
-SELECT 
-	ROUND(SUM(a.total)::numeric, 2) "Total FTE staff"
-FROM (SELECT 
-		AVG(FTE_category_A_staff_submitted) as total
+SELECT ROUND(SUM(a.total)::numeric, 2) "Total FTE staff"
+FROM (SELECT AVG(FTE_category_A_staff_submitted) as total
 	FROM ref_table 
 		GROUP BY institution_name, unit_of_assessment_name, FTE_category_A_staff_submitted, multiple_submission_name
 		ORDER BY institution_name, unit_of_assessment_name) a
@@ -125,8 +125,7 @@ CREATE OR REPLACE FUNCTION get_table(uoa varchar(255))
 	#variable_conflict use_column
 	begin
 		return query
-		SELECT 
-			institution_name,
+		SELECT	institution_name,
 			unit_of_assessment_name,
 			profile,
 			star_rating,
@@ -158,8 +157,7 @@ This time we'll use a view:
 ~~~~sql
 -- create view 
 CREATE VIEW UOA_table AS
-SELECT 
-	institution_name, 
+SELECT 	institution_name, 
 	unit_of_assessment_name, 
 	profile, 
 	star_rating, 
@@ -168,8 +166,7 @@ FROM ref_table WHERE unit_of_assessment_name='Philosophy'
 	GROUP BY unit_of_assessment_name, institution_name, multiple_submission_name, 
 		profile, star_rating, percentage ORDER BY institution_name;
 -- query 
-SELECT 
-	a.institution_name AS "Institution name", 
+SELECT a.institution_name AS "Institution name", 
 	ROUND(AVG(a.percentage),2) AS "Overall quality profile"
 FROM (SELECT * FROM UOA_table) AS a 
 WHERE a.profile='Overall' AND (a.star_rating='4*' OR a.star_rating='3*') 
@@ -190,15 +187,13 @@ To perform this with PostgreSQL we end up with a fairly big query, since we pefo
 ~~~~sql
 -- view 
 CREATE OR REPLACE VIEW gpa_table AS
-SELECT 
-	institution_name, 
+SELECT 	institution_name, 
 	unit_of_assessment_name, 
 	multiple_submission_name, 
 	FTE_category_A_staff_submitted AS fte,
 	profile,
 	ROUND(SUM(a.gpa)/100,2) as overall_gpa -- add the GPAs together and divide by 100 
-FROM (SELECT 
-		institution_name, 
+FROM (SELECT	institution_name, 
 		unit_of_assessment_name, 
 		multiple_submission_name, 
 	  	FTE_category_A_staff_submitted,
@@ -219,8 +214,7 @@ FROM (SELECT
 	  	multiple_submission_name, FTE_category_A_staff_submitted, profile;
 
 -- query 
-SELECT 
-	ROW_NUMBER() OVER(ORDER BY SUM(fte*overall_gpa) DESC) "result", -- (show numbers next to results)
+SELECT 	ROW_NUMBER() OVER(ORDER BY SUM(fte*overall_gpa) DESC) "result", -- (show numbers next to results)
 	institution_name, 
 	ROUND((SUM(fte*overall_gpa)/SUM(fte)),2) AS fte_weighted_gpa, 
 	SUM(fte) as "total fte in uni",
@@ -240,16 +234,14 @@ Q:  List the 36 subjects in terms of submission count, max to min.
 Here we use a Common Table Expression (CTE):
 ~~~~sql
 WITH a AS (
-	SELECT 
-		unit_of_assessment_name, 
+	SELECT	unit_of_assessment_name, 
 		unit_of_assessment_number, 
 		multiple_submission_name, 
 		institution_name 
 	FROM ref_table
 		GROUP BY institution_name, unit_of_assessment_name, unit_of_assessment_number, 
 			multiple_submission_name ORDER BY unit_of_assessment_name, institution_name
-) SELECT 
-	unit_of_assessment_number, 
+) SELECT unit_of_assessment_number, 
 	unit_of_assessment_name, 
 	COUNT(unit_of_assessment_name) as "Number of submissions"
 FROM a
@@ -302,40 +294,42 @@ Now that we have the data we want to merge this with our existing data. Our stra
 ~~~~sql
 -- table 1 
 CREATE TEMPORARY TABLE fte_submitted AS 
-WITH a AS (SELECT 
-		institution_code, 
-		institution_name, 
-		ROUND(AVG(FTE_category_A_staff_submitted),2) as fte, 
-		unit_of_assessment_number, 
-		multiple_submission_name  
-		FROM ref_table 
-			GROUP BY institution_code, institution_name,  unit_of_assessment_number, multiple_submission_name 
-			ORDER BY institution_name, unit_of_assessment_number, multiple_submission_name
-		)
-SELECT
-	  institution_code, 
-	  institution_name, 
-	  SUM(fte) AS "Submitted FTE" 
+WITH a AS 
+(SELECT institution_code, 
+	institution_name, 
+	ROUND(AVG(FTE_category_A_staff_submitted),2) as fte, 
+	unit_of_assessment_number, 
+	multiple_submission_name  
+	FROM ref_table 
+		GROUP BY institution_code, institution_name,  unit_of_assessment_number, multiple_submission_name 
+		ORDER BY institution_name, unit_of_assessment_number, multiple_submission_name
+)
+SELECT	institution_code, 
+	institution_name, 
+	SUM(fte) AS "Submitted FTE" 
 FROM a 
 	GROUP BY institution_code, institution_name 
 	ORDER BY institution_code
 
+
 -- table 2 
-DROP TABLE fte_eligible
 CREATE TEMPORARY TABLE fte_eligible AS 
-SELECT ukprn, SUM(FTE_scaled) AS "Eligible FTE" FROM raw_data_context GROUP BY ukprn ORDER BY ukprn
+SELECT 	ukprn, 
+	SUM(FTE_scaled) AS "Eligible FTE" 
+FROM raw_data_context 
+	GROUP BY ukprn ORDER BY ukprn
 
 
 -- Join the two tables 
-SELECT 
-	fte_submitted.institution_code,
+SELECT 	fte_submitted.institution_code,
 	fte_submitted.institution_name,
 	fte_submitted."Submitted FTE",  
 	fte_eligible."Eligible FTE",
 	ROUND(fte_submitted."Submitted FTE"/NULLIF(fte_eligible."Eligible FTE", 0),2) AS "Intensity"
 FROM fte_submitted 
-	INNER JOIN fte_eligible ON fte_submitted.institution_code = fte_eligible.ukprn
-	WHERE ROUND(fte_submitted."Submitted FTE"/NULLIF(fte_eligible."Eligible FTE", 0),2) <1 
+INNER JOIN fte_eligible 
+	ON fte_submitted.institution_code = fte_eligible.ukprn
+WHERE ROUND(fte_submitted."Submitted FTE"/NULLIF(fte_eligible."Eligible FTE", 0),2) <1 
 	ORDER BY "Intensity" DESC	
 
 ~~~~
