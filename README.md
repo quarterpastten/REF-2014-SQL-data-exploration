@@ -130,7 +130,8 @@ CREATE OR REPLACE FUNCTION get_table(uoa varchar(255))
 			profile,
 			star_rating,
 			percentage
-		FROM ref_table WHERE unit_of_assessment_name=uoa OR uoa is null 
+		FROM ref_table 
+		WHERE unit_of_assessment_name=uoa OR uoa is null 
 			GROUP BY unit_of_assessment_name, institution_name, 
 				multiple_submission_name, profile, star_rating, percentage 
 			ORDER BY institution_name;
@@ -162,11 +163,13 @@ SELECT 	institution_name,
 	profile, 
 	star_rating, 
 	percentage 
-FROM ref_table WHERE unit_of_assessment_name='Philosophy'
+FROM ref_table 
+WHERE unit_of_assessment_name='Philosophy'
 	GROUP BY unit_of_assessment_name, institution_name, multiple_submission_name, 
 		profile, star_rating, percentage ORDER BY institution_name;
+		
 -- query 
-SELECT a.institution_name AS "Institution name", 
+SELECT 	a.institution_name AS "Institution name", 
 	ROUND(AVG(a.percentage),2) AS "Overall quality profile"
 FROM (SELECT * FROM UOA_table) AS a 
 WHERE a.profile='Overall' AND (a.star_rating='4*' OR a.star_rating='3*') 
@@ -193,7 +196,7 @@ SELECT 	institution_name,
 	FTE_category_A_staff_submitted AS fte,
 	profile,
 	ROUND(SUM(a.gpa)/100,2) as overall_gpa -- add the GPAs together and divide by 100 
-FROM (SELECT	institution_name, 
+FROM 	(SELECT	institution_name, 
 		unit_of_assessment_name, 
 		multiple_submission_name, 
 	  	FTE_category_A_staff_submitted,
@@ -207,10 +210,12 @@ FROM (SELECT	institution_name,
 			WHEN star_rating = '1*' THEN percentage*1	
 			ELSE percentage*0
 		END AS gpa
-	FROM ref_table WHERE profile='Overall'
+	FROM ref_table 
+	WHERE profile='Overall'
 		GROUP BY institution_name, unit_of_assessment_name, multiple_submission_name, 
 			FTE_category_A_staff_submitted, profile, star_rating, percentage
-	  ) as a GROUP BY institution_name, unit_of_assessment_name, 
+	) as a 
+	GROUP BY institution_name, unit_of_assessment_name, 
 	  	multiple_submission_name, FTE_category_A_staff_submitted, profile;
 
 -- query 
