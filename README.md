@@ -1,23 +1,23 @@
 # Research Excellence Framework 2014 
 ## A SQL data exploration
 
-The [UK University Research Excellence Framework Ratings 2014](https://public.tableau.com/s/sites/default/files/media/Resources/Research%20Excellence%20Framework%202014%20Results_Pivoted.xlsx) was conducted by the four UK higher education funding bodies in order to assess the quality of research in UK higher education institutions. The dataset contains data on 154 UK research institutions, each of which made submissions for up to 36 'units of assessment' (e.g. history, philosophy, biological sciences, etc.) Each submission was graded in terms of the university's output, research environment and 'impact' the research had on society in general. 
+The [UK University Research Excellence Framework Ratings 2014](https://public.tableau.com/s/sites/default/files/media/Resources/Research%20Excellence%20Framework%202014%20Results_Pivoted.xlsx) was conducted by the four UK higher education funding bodies in order to assess the quality of research in UK higher education institutions. The dataset contains data on 154 institutions, each of which made submissions for up to 36 'units of assessment' (e.g. history, philosophy, biological sciences, etc.) Each submission was graded in terms of the university's output, research environment and impact the research had on society in general. 
 
-The purpose here is to answer a number of questions about the dataset, and to do this we will use **PostgreSQL** to import and analyse the data. We shall rely primarily on **PgAdmin**, though a little is done in **psql** also. SQL skills utilised include: *creating tables, setting and converting data types, subquerying, user-defined functions, views, grouping data, temp tables, joins, CTEs, case statements and a number of mathematical aggregate functions.*    
+The purpose here is to answer a number of questions about the dataset using **PostgreSQL** to import and analyse the data. We shall rely primarily on **PgAdmin**, though a little is done in **psql** also. SQL skills utilised include: *creating tables, setting and converting data types, subquerying, user-defined functions, views, grouping data, temp tables, joins, CTEs, case statements and a number of mathematical aggregate functions.*    
 
 ## Understanding of the data
 
-The data comes in the form of an Excel spreadsheet, though we convert it to a .csv file. 
+The data comes in the form of an Excel spreadsheet, which has been downloaded, converted to a .csv file and stored on a local drive. 
 
-Below shows the format of the raw data: here we have one university (*Anglia Ruskin*) and one of its submissions (*Allied Health Professions, Dentistry, Nursing and Pharmacy*). Each submission is broken into 4 'profiles' (*outputs, impact, environment* and *overall*) and each of these in turn is given a 'star rating' (from 4* to *unclassified*). The values for the ratings are stored in the percentage column, and sum to 100 for each profile. 
+Below shows the format of the raw data: here we have one of our 154 institutions (*Anglia Ruskin*) and one of its submissions (*Allied Health Professions, Dentistry, Nursing and Pharmacy*). Each submission is broken into 4 'profiles' (*outputs, impact, environment* and *overall*) and each of these in turn is given a 'star rating' (from 4* to *unclassified*). The values for the ratings are stored in the percentage column, and sum to 100 for each profile. 
 
-The better submissions will have higher values for 4* and 3* in each of the profiles. To simplify things, I focus only on the 'Overall' profile, which is the average of the other three.   
+The better submissions will have higher values for 4* and 3* in each of the profiles. To simplify things, I focus only on the 'Overall' profile, which is the average of the other three profiles.   
 
 ![image](https://user-images.githubusercontent.com/86210945/151533542-42289c04-8680-408a-b959-2456d492c0f5.png)
 
 ## Task 1: create a table and import raw data into it 
 
-First we create a table with columns that match the .csv file columns. Two columns (institution_code and percentage) are initially set to varchar when really they should be INT and NUMERIC respectively. This is because (as it turns out) there are some non-numeric characters in those columns which cause errors when using numeric types. (We will resolve this shortly.)   
+First let's create a table with columns that match the columns we find in the .csv data. Two columns (institution_code and percentage) are initially set to varchar when really they should be INT and NUMERIC respectively. This is because (as it turns out) there are some non-numeric characters in those columns which cause errors when using numeric types. (We will resolve this shortly.)   
 
 ~~~~sql
 DROP TABLE raw_data;
@@ -35,7 +35,7 @@ CREATE TABLE raw_data(
 	FTE_category_A_staff_submitted NUMERIC (5,2),
 	star_rating VARCHAR(255),
 	percentage VARCHAR(255)
-) 
+);
 ~~~~
 
 In psql, we run the following  to import the data:
@@ -91,7 +91,7 @@ ALTER TABLE ref_table ALTER COLUMN percentage TYPE NUMERIC(4,1) USING percentage
 
 ## Task 3: data exploration 
 
-We are now ready to run queries on the data. 
+We are now ready to run queries to answer questions about the data. 
 
 #### Question 1: which are the best institutions in terms of research? List top 5 that scored the highest in terms of grades 4* and 3*.
 
@@ -102,7 +102,11 @@ FROM ref_table
 WHERE profile='Overall' AND (star_rating='4*' OR star_rating='3*') 
 	GROUP BY institution_name ORDER BY AVG(percentage) DESC LIMIT 5;
 ~~~~
-![image](https://user-images.githubusercontent.com/86210945/151540575-324011f2-6bb1-49b6-884f-e9d2c45fb81c.png)
+
+![image](https://user-images.githubusercontent.com/86210945/151784509-8dcb0fa4-d543-4e84-81e3-70a67f862f97.png)
+
+
+
 
 #### Question 2: how many FTE (full-time equivalent) staff were there in total?  
 
@@ -112,7 +116,7 @@ SELECT ROUND(SUM(a.total)::numeric, 2) "Total FTE staff"
 FROM (SELECT AVG(FTE_category_A_staff_submitted) as total
 	FROM ref_table 
 		GROUP BY institution_name, unit_of_assessment_name, FTE_category_A_staff_submitted, multiple_submission_name
-		ORDER BY institution_name, unit_of_assessment_name) a
+		ORDER BY institution_name, unit_of_assessment_name) a;
 ~~~~
 ![image](https://user-images.githubusercontent.com/86210945/151543451-5385555f-8e96-43ea-9862-02de4aed20dc.png)
 
@@ -145,16 +149,16 @@ CREATE OR REPLACE FUNCTION get_table(uoa varchar(255))
 				multiple_submission_name, profile, star_rating, percentage 
 			ORDER BY institution_name;
 	end;
-	$$
+	$$;
 
  
 SELECT 
-	a.institution_name AS "Institution name", 
-	a.percentage AS "Overall quality profile"
+	a.institution_name as "Institution name", 
+	a.percentage as "Overall quality profile"
 FROM (
 	SELECT *  FROM get_table('Philosophy') 
 ) AS a 
-WHERE a.profile='Overall' AND a.star_rating='4*' ORDER BY a.percentage DESC
+WHERE a.profile='Overall' AND a.star_rating='4*' ORDER BY a.percentage DESC;
 
 ~~~~
 
@@ -180,27 +184,29 @@ WHERE unit_of_assessment_name='Philosophy'
 		profile, star_rating, percentage ORDER BY institution_name;
 		
 -- query 
-SELECT 	a.institution_name AS "Institution name", 
-	ROUND(AVG(a.percentage),2) AS "Overall quality profile"
+SELECT 	a.institution_name as "Institution name", 
+	ROUND(AVG(a.percentage),2) as "Overall quality profile"
 FROM (SELECT * FROM UOA_table) AS a 
 WHERE a.profile='Overall' AND (a.star_rating='4*' OR a.star_rating='3*') 
-	GROUP BY a.institution_name ORDER BY "Overall quality profile" DESC
+	GROUP BY a.institution_name ORDER BY "Overall quality profile" DESC;
 ~~~~
 
 ![image](https://user-images.githubusercontent.com/86210945/151571200-12cd3162-08e8-4bc1-bc96-15e91e3674c6.png)
 
 #### Question 5: Give the rankings in terms of ‘research power’.
 
-According to the university [website](https://ref2014.leeds.ac.uk/brand-new-page/definitions/), the 'research power' is derived from something called the 'grade point average (GPA)', which is multiplied by the FTE that accompanies each submission. After a close look at the document in the link, we see that we first calculate the GPA with the following steps: 
+According to the University of Leeds [website](https://ref2014.leeds.ac.uk/brand-new-page/definitions/), 'research power' is derived from something called the 'grade point average (GPA)'. We first calculate the GPA with the following steps: 
 
 for each institution, and each unit of assessment (UOA)
 1. Multiply each percentage by its star rating. (E.g. if it has a value of 6.4% for 4*, we calculate 4 x 6.4 = 25.6. If it has 24% for 3* we do 3 x 24 = 72, and so on for 2* and 1*. We treat 'unclassified' as multiplying by 0.)
 2. Add these values together.
 3. Divide this result by 100
+
 Now we have the GPA for each UOA. The final step is this: 
+
 4. For each UOA, multiply the GPA by FTE for that UOA
 
-The University of Leeds maintains that it ranks number 10 in terms of 'research power' - which will serve as a convenient sanity check for the following query. To perform all this with PostgreSQL we end up with a fairly long query since we peforming several mathematical functions. To reduce the number of subqueries here we use a view:   
+The University of Leeds maintains that it ranks number 10 in terms of 'research power' - which will serve as a convenient sanity check for our query. To perform all this with PostgreSQL we end up with a fairly long query since we peforming a culmination of several mathematical functions. To reduce the number of subqueries here we use a view:   
 
 ~~~~sql
 -- view 
@@ -208,7 +214,7 @@ CREATE OR REPLACE VIEW gpa_table AS
 SELECT 	institution_name, 
 	unit_of_assessment_name, 
 	multiple_submission_name, 
-	FTE_category_A_staff_submitted AS fte,
+	FTE_category_A_staff_submitted as fte,
 	profile,
 	ROUND(SUM(a.gpa)/100,2) as overall_gpa -- add the GPAs together and divide by 100 
 FROM 	(SELECT	institution_name, 
@@ -236,13 +242,13 @@ FROM 	(SELECT	institution_name,
 -- query 
 SELECT 	ROW_NUMBER() OVER(ORDER BY SUM(fte*overall_gpa) DESC) "result", -- (show numbers next to results)
 	institution_name, 
-	ROUND((SUM(fte*overall_gpa)/SUM(fte)),2) AS fte_weighted_gpa, 
+	ROUND((SUM(fte*overall_gpa)/SUM(fte)),2) as fte_weighted_gpa, 
 	SUM(fte) as "total fte in uni",
-	SUM(fte*overall_gpa) AS "SUM of fte * overall_gpa",
-	SUM(overall_gpa) AS "overall gpa"	
+	SUM(fte*overall_gpa) as "SUM of fte * overall_gpa",
+	SUM(overall_gpa) as "overall gpa"	
 FROM (SELECT * FROM gpa_table) AS a
 GROUP BY institution_name
-ORDER BY "SUM of fte * overall_gpa" DESC
+ORDER BY "SUM of fte * overall_gpa" DESC;
 ~~~~
 
 University College London scores highest. We also see that Leeds is indeed number 10 on this calculation: 
@@ -267,20 +273,18 @@ WITH a AS (
 	COUNT(unit_of_assessment_name) as "Number of submissions"
 FROM a
 	GROUP BY unit_of_assessment_name, unit_of_assessment_number 
-	ORDER BY "Number of submissions" DESC
+	ORDER BY "Number of submissions" DESC;
 ~~~~
 
 ![image](https://user-images.githubusercontent.com/86210945/151578087-fd8d5ce3-d587-4afd-9c0a-bac5c2a579f1.png)
 
 ## Task 4: Import new data and combine with original data
 
-According to this [higher education blog](https://wonkhe.com/blogs/ref-2014-sector-results-2/), the submitted figures do not tell the whole story since they only include the FTE staff that institutions decided to put forward. However, a 'contextual' [dataset](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data) was subsequently published showing the numbers of staff that were *eligible to be put forward* per institution. Perhaps some institutions, for instance, only put forward their most impressive staff. Let us compare the staff numbers submitted with the numbers that were eligible for each institution, which wll give us an 'Intensity' of research value for each institution, which equates to *submitted FTE / eligible FTE*. In what follows we will import this new data and use SQL to join it with our existing data and calculate the intesntity scores. 
+According to this [higher education blog](https://wonkhe.com/blogs/ref-2014-sector-results-2/), the submitted figures do not tell the whole story. This is because they only include the FTE staff that institutions decided to put forward. However, a 'contextual' [dataset](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data) was subsequently published showing the numbers of staff that were *eligible to be put forward* per institution. Perhaps some institutions, for instance, only put forward their most impressive staff. Let us compare the staff numbers submitted with the numbers that were eligible for each institution, which wll give us an 'Intensity' of research value for each institution, which equates to *submitted FTE / eligible FTE*. In what follows we will import this new data, convert it to a .csv and store it locally. We then use SQL to join it with our existing data and calculate the intensity scores. 
 
-#### 1. Create a table with the relevant data types
+#### 1. Create a table with data types appropriate to the columns in the .csv
 ~~~~sql
-DROP TABLE raw_data_context;
 CREATE TABLE raw_data_context(
-	--id SERIAL,
 	instid INT, 
 	ukprn INT,
 	region VARCHAR(255),
@@ -299,11 +303,9 @@ CREATE TABLE raw_data_context(
 
 #### 3. As before, we need to clean a couple of columns:
 ~~~~sql
--- clean unit_of_assessment_number column, and set to INT (changes 'N/A' to O):
 UPDATE raw_data_context SET unit_of_assessment_number = REGEXP_REPLACE(unit_of_assessment_number, '[^0-9]+', '00', 'g')
 ALTER TABLE raw_data_context ALTER COLUMN unit_of_assessment_number TYPE INT USING unit_of_assessment_number::integer;
 
--- clean FTE_scaled column, and set to INT (changes '..' to 0):
 UPDATE raw_data_context SET FTE_scaled = REGEXP_REPLACE(FTE_scaled, '[^0-9]+', '0', 'g')
 ALTER TABLE raw_data_context ALTER COLUMN FTE_scaled TYPE INT USING FTE_scaled::integer;
 ~~~~
@@ -319,24 +321,24 @@ WITH a AS
 	ROUND(AVG(FTE_category_A_staff_submitted),2) as fte, 
 	unit_of_assessment_number, 
 	multiple_submission_name  
-	FROM ref_table 
-		GROUP BY institution_code, institution_name,  unit_of_assessment_number, multiple_submission_name 
-		ORDER BY institution_name, unit_of_assessment_number, multiple_submission_name
+FROM ref_table 
+	GROUP BY institution_code, institution_name,  unit_of_assessment_number, multiple_submission_name 
+	ORDER BY institution_name, unit_of_assessment_number, multiple_submission_name
 )
 SELECT	institution_code, 
 	institution_name, 
-	SUM(fte) AS "Submitted FTE" 
+	SUM(fte) as "Submitted FTE" 
 FROM a 
 	GROUP BY institution_code, institution_name 
-	ORDER BY institution_code
+	ORDER BY institution_code;
 
 
 -- table 2 
 CREATE TEMPORARY TABLE fte_eligible AS 
 SELECT 	ukprn, 
-	SUM(FTE_scaled) AS "Eligible FTE" 
+	SUM(FTE_scaled) as "Eligible FTE" 
 FROM raw_data_context 
-	GROUP BY ukprn ORDER BY ukprn
+	GROUP BY ukprn ORDER BY ukprn;
 
 
 -- Join the two tables 
@@ -349,7 +351,10 @@ FROM fte_submitted
 INNER JOIN fte_eligible 
 	ON fte_submitted.institution_code = fte_eligible.ukprn
 WHERE ROUND(fte_submitted."Submitted FTE"/NULLIF(fte_eligible."Eligible FTE", 0),2) <1 
-	ORDER BY "Intensity" DESC	
+	ORDER BY "Intensity" DESC;
 
 ~~~~
 
+![image](https://user-images.githubusercontent.com/86210945/151791797-c41af54d-82b8-4911-815a-b18e5887d8aa.png)
+
+This gives us the research intesity, which we could go on to use to weight the previous results (we won't do this in this exploration, however). All we would need to do is to multiply this intensity figure by the GPA figures we already calculated for each institution. This would give us a somewhat different ranking of research power for UK institutions. 
