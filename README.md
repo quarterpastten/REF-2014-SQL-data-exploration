@@ -5,6 +5,13 @@ The [UK University Research Excellence Framework Ratings 2014](https://public.ta
 
 The purpose here is to answer a number of questions about the dataset using **PostgreSQL** to import and analyse the data. We shall rely primarily on **PgAdmin**, though a little is done in **psql** also. SQL skills utilised include: *creating tables, setting and converting data types, subquerying, user-defined functions, views, grouping data, temp tables, joins, CTEs, case statements and a number of mathematical aggregate functions.*    
 
+Below is an overview of the exploration. The code is in an .sql file in this repository. The two datasets used are:
+
+[UK University Research Excellence Framework Ratings 2014](https://public.tableau.com/s/sites/default/files/media/Resources/Research%20Excellence%20Framework%202014%20Results_Pivoted.xlsx) 
+
+[Contextual data for the Research Excellence Framework 2014](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data)
+
+
 ## Understanding of the data
 
 The data comes in the form of an Excel spreadsheet, which has been downloaded, converted to a .csv file and stored on a local drive. 
