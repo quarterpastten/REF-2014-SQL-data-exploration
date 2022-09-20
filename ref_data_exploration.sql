@@ -20,7 +20,7 @@ CREATE TABLE raw_data(
 );
 
 -- import data (run from psql):
--- \copy raw_data FROM 'C:\Users\Public\SQL_test_project\raw_data.csv' WITH CSV HEADER;
+-- \copy raw_data FROM 'C:\Users\...filepath...\raw_data.csv' WITH CSV HEADER;
 
 -- add primary key:
 ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
@@ -203,7 +203,7 @@ CREATE TABLE raw_data_context(
 );
 
 -- 2. download data and import from local drive. Run via psql:
---'\copy raw_data_context FROM 'C:/Users/Public/raw_data_context.csv' WITH CSV HEADER;'
+--'\copy raw_data_context FROM 'C:/Users/...filepath.../raw_data_context.csv' WITH CSV HEADER;'
 
 
 
