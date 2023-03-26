@@ -23,6 +23,8 @@ CREATE TABLE raw_data(
 -- \copy raw_data FROM 'C:\Users\...filepath...\raw_data.csv' WITH CSV HEADER;
 
 
+
+
 -- add primary key:
 ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
 
