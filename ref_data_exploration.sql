@@ -21,6 +21,7 @@ CREATE TABLE raw_data(
 
 -- import data (run from psql):
 -- \copy raw_data FROM 'C:\Users\...filepath...\raw_data.csv' WITH CSV HEADER;
+-- (a new comment - just to test!)
 
 -- add primary key:
 ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
