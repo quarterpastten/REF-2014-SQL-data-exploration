@@ -25,6 +25,7 @@ CREATE TABLE raw_data(
 
 
 
+
 -- add primary key:
 ALTER TABLE raw_data ADD COLUMN id SERIAL PRIMARY KEY;
 
