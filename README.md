@@ -10,6 +10,7 @@ Below I use PostgreSQL to import and analyse the data. I use PgAdmin mainly, wit
 [Contextual data for the Research Excellence Framework 2014](https://www.hesa.ac.uk/news/18-12-2014/research-excellence-framework-data)
 
 
+
 ## Understanding of the data
 
 The data comes in the form of an Excel spreadsheet, which I converted to a .csv file and stored locally. 
